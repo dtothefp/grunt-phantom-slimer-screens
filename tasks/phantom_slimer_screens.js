@@ -26,7 +26,7 @@ module.exports = function (grunt) {
 
     var screener = new Screener(grunt, srcFiles, this.options(), done);
 
-    console.log(screener.makePicPaths());
+    screener.takeScreenShots();
   });
 
 };

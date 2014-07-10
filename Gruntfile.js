@@ -31,10 +31,21 @@ module.exports = function (grunt) {
       tests: ['tmp']
     },
 
+    connect: {
+      server: {
+        options: {
+          port: 3000,
+          base: '.',
+          keepalive: true
+        }
+      }
+    },
+
     // Configuration to be run (and then tested).
     phantom_slimer_screens: {
       default_options: {
         options: {
+          indexPath: 'screens/',
           baseUrl: 'http://localhost:3000/',
           screenSizes: ['450', '600', '960', '1024']
         },
@@ -63,5 +74,7 @@ module.exports = function (grunt) {
 
   // By default, lint and run all tests.
   grunt.registerTask('default', ['jshint', 'test']);
+
+  grunt.registerTask('server', ['connect:server']);
 
 };

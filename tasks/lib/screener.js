@@ -11,18 +11,26 @@ var Screener = function (grunt, files, options, callback) {
   this.grunt = grunt;
   this.files = files;
   this.options = options;
+  this.pictures = this.makePicPaths();
   this.pictureCount = 0;
 };
 
+// Make all paths for screenshots, concated with baseUrl and screenSizes, index.html removed 
 Screener.prototype.makePicPaths = function() {
   var pictures = [];
   var baseUrl = this.options.baseUrl;
+  if (baseUrl[baseUrl.length - 1] !== '/') {
+    baseUrl = baseUrl + '/';
+  }
 
   this.files.forEach(function(file) {
+    if ( file.match(/index\.html/) ) {
+      file = file.replace(/index\.html/, '');
+    }
+    if (file[0] === '/') {
+      file = file.substring(1, file.length);
+    } 
     this.options.screenSizes.forEach(function(width) {
-      if ( file.match(/index\.html/) ) {
-        file = file.replace(/index\.html/, '');
-      }
       pictures.push(baseUrl + file + '#' + width);
     }, this);
   }, this);
@@ -30,9 +38,40 @@ Screener.prototype.makePicPaths = function() {
   return pictures;
 };
 
+Screener.prototype.takeScreenShots = function() {
+  this.grunt.log.subhead( 'PHOTOBOX STARTED PHOTO SESSION.' );
 
-Screener.prototype.showFiles = function() {
-  return this.files;
-};
+  this.pictures.forEach(function(picture) {
+    this.grunt.log.writeln( 'started photo session for ' + picture );
 
+    var args = [
+      path.resolve( __dirname, 'phantomScript.js' ),
+      picture,
+      this.options.indexPath
+    ];
+
+    var opts = {};
+
+    if ( this.grunt.option( 'verbose' ) ) {
+      opts = {
+        stdio: 'inherit'
+      };
+    }
+
+    this.grunt.log.verbose.writeln( 'Command: phantomjs ' + args.join( ' ' ) + '\n' );
+
+    this.grunt.util.spawn( {
+      cmd  : phantomPath,
+      args : args,
+      opts : opts
+    }, function( err, result, code ) {
+      console.log("error", err);
+      console.log("result", result);
+      console.log("code", code);
+    }.bind( this ) );
+
+  }, this);
+}
+
+// expose the Screener object
 module.exports = Screener;
