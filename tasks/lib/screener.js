@@ -5,6 +5,22 @@ var path        = require('path');
 var phantomjs   = require('phantomjs');
 var phantomPath = phantomjs.path;
 
+var deleteFolderRecursive = function(path) {
+    var files = [];
+    if( fs.existsSync(path) ) {
+        files = fs.readdirSync(path);
+        files.forEach(function(file,index){
+            var curPath = path + "/" + file;
+            if(fs.lstatSync(curPath).isDirectory()) { // recurse
+                deleteFolderRecursive(curPath);
+            } else { // delete file
+                fs.unlinkSync(curPath);
+            }
+        });
+        fs.rmdirSync(path);
+    }
+};
+
 var Screener = function (grunt, files, options, callback) {
   this.callback = callback;
   this.diffCount = 0;
@@ -12,6 +28,7 @@ var Screener = function (grunt, files, options, callback) {
   this.files = files;
   this.options = options;
   this.pictures = this.makePicPaths();
+  this.screenNames = [];
   this.pictureCount = 0;
 };
 
@@ -31,7 +48,7 @@ Screener.prototype.makePicPaths = function() {
       file = file.substring(1, file.length);
     } 
     this.options.screenSizes.forEach(function(width) {
-      pictures.push(baseUrl + file + '#' + width);
+      pictures.push(baseUrl + '#' + file + '#' + width);
     }, this);
   }, this);
 
@@ -41,7 +58,7 @@ Screener.prototype.makePicPaths = function() {
 Screener.prototype.takeScreenShots = function() {
   this.grunt.log.subhead( 'PHOTOBOX STARTED PHOTO SESSION.' );
 
-  this.pictures.forEach(function(picture) {
+  this.pictures.forEach(function(picture, index) {
     this.grunt.log.writeln( 'started photo session for ' + picture );
 
     var args = [
@@ -65,12 +82,36 @@ Screener.prototype.takeScreenShots = function() {
       args : args,
       opts : opts
     }, function( err, result, code ) {
-      console.log("error", err);
-      console.log("result", result);
-      console.log("code", code);
+      var split = picture.split('#');
+      this.screenNames.push( split[1].replace( /\//g, '-').replace(/\./g, '-') + '-' + split[2] + '.png' );
+      this.pictureCount += 1;
+      if (this.pictureCount === this.pictures.length) {
+        this.handleImages(err, result, code);
+      }
     }.bind( this ) );
 
   }, this);
+}
+
+Screener.prototype.handleImages = function(err, result, code) {
+  // if screens have been previously taken
+  if ( fs.existsSync(this.options.indexPath + 'img/screens') ) {
+    this.screenNames.forEach(function(screenName) {
+      var latestScreen = this.grunt.file.read(this.options.indexPath + 'img/tmp/' + screenName);
+      // do comparison here
+      var previousScreen = this.grunt.file.read(this.options.indexPath + 'img/screens/' + screenName);
+      this.grunt.file.write(this.options.indexPath + 'img/screens/' + screenName, latestScreen);
+    }, this);
+  }
+  // if screens have not been previously taken
+  else {
+    this.screenNames.forEach(function(screenName) {
+      var latestScreen = this.grunt.file.read(this.options.indexPath + 'img/tmp/' + screenName);
+      this.grunt.file.write(this.options.indexPath + 'img/screens/' + screenName, latestScreen);
+    }, this);
+  }
+  // delete img directory if it already exists
+  deleteFolderRecursive(this.options.indexPath + 'img/tmp');
 }
 
 // expose the Screener object

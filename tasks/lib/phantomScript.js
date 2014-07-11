@@ -1,11 +1,17 @@
 var system        = require ( 'system' );
 var webpage       = require( 'webpage' );
+var fs            = require('fs');
 var page          = webpage.create();
 var combinedUrl   = system.args[ 1 ];
 var split         = combinedUrl.split( '#' );
-var url           = split[ 0 ];
-var width         = +split[ 1 ];
+var baseUrl       = split[ 0 ];
+var filePath      = split[ 1 ];
+var width         = +split[ 2 ];
 var indexPath     = system.args[ 2 ];
+// if ( filePath.match(/index\.html/) ) {
+//   filePath = filePath.replace(/index\.html/, '');
+// }
+var url = baseUrl + filePath;
 
 page.onError = function ( msg ) {
   system.stderr.writeLine( 'ERROR:' + msg );
@@ -39,17 +45,13 @@ page.open( url, function( status ) {
 
     // indexPath specified in Gruntfile or default options, path to where screenshots are stored
     var imgPath = indexPath +
-                    'img/current/' +
-                    url.replace( /(http:\/\/|https:\/\/)/, '').replace( /\//g, '-') +
+                    'img/tmp/' +
+                    filePath.replace( /\//g, '-').replace(/\./g, '-') +
                     '-' + width +
                     '.png';
-
-    console.log( 'Rendering ' + imgPath );
     page.render( imgPath, {format: 'png', quality: '100'} );
 
-    page.onClosing = function() {
-      system.stdout.writeLine( width );
-    };
+    system.stdout.writeLine( 'Rendered: ' + filePath.replace( /\//g, '-').replace(/\./g, '-') );
 
     phantom.exit();
   }, 1000 );
