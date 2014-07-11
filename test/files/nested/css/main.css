@@ -397,5 +397,10 @@ nav a:hover {
 }
 
 .header-container {
-    background: blue;
+    background: red;
+}
+
+body,
+.wrapper {
+    width: 300px;
 }
