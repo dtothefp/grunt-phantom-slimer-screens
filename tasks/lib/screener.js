@@ -5,6 +5,7 @@ var path        = require('path');
 var phantomjs   = require('phantomjs');
 var phantomPath = phantomjs.path;
 
+// used because fs.rmdirSync will not remove non-empty directories 
 var deleteFolderRecursive = function(path) {
     var files = [];
     if( fs.existsSync(path) ) {
@@ -48,9 +49,14 @@ Screener.prototype.makePicPaths = function() {
       file = file.substring(1, file.length);
     } 
     this.options.screenSizes.forEach(function(width) {
-      pictures.push(baseUrl + '#' + file + '#' + width);
+      var pictureDetails = {};
+      pictureDetails.name = (file + width).replace(/_/g, "-").replace(/\.html/, '-').replace( /\//g, '-').replace(/\./g, '-');
+      pictureDetails.path = baseUrl + '#' + file + '#' + width;
+
+      pictures.push(pictureDetails);
     }, this);
   }, this);
+
 
   return pictures;
 };
@@ -59,11 +65,12 @@ Screener.prototype.takeScreenShots = function() {
   this.grunt.log.subhead( 'PHOTOBOX STARTED PHOTO SESSION.' );
 
   this.pictures.forEach(function(picture, index) {
-    this.grunt.log.writeln( 'started photo session for ' + picture );
+    this.grunt.log.writeln( 'started photo session for ' + picture.name );
 
     var args = [
       path.resolve( __dirname, 'phantomScript.js' ),
-      picture,
+      picture.path,
+      picture.name,
       this.options.indexPath
     ];
 
@@ -82,37 +89,57 @@ Screener.prototype.takeScreenShots = function() {
       args : args,
       opts : opts
     }, function( err, result, code ) {
-      var split = picture.split('#');
-      this.screenNames.push( split[1].replace( /\//g, '-').replace(/\./g, '-') + '-' + split[2] + '.png' );
       this.pictureCount += 1;
       if (this.pictureCount === this.pictures.length) {
+        console.log("handle images");
         this.handleImages(err, result, code);
       }
     }.bind( this ) );
 
   }, this);
-}
+};
 
 Screener.prototype.handleImages = function(err, result, code) {
   // if screens have been previously taken
   if ( fs.existsSync(this.options.indexPath + 'img/screens') ) {
-    this.screenNames.forEach(function(screenName) {
-      var latestScreen = this.grunt.file.read(this.options.indexPath + 'img/tmp/' + screenName);
-      // do comparison here
-      var previousScreen = this.grunt.file.read(this.options.indexPath + 'img/screens/' + screenName);
-      this.grunt.file.write(this.options.indexPath + 'img/screens/' + screenName, latestScreen);
+    this.pictures.forEach(function(picture) {
+      var pictureName = picture.name + '.png';
+      // do comparison with resemble JS here
+      var latestScreen = this.grunt.file.read(this.options.indexPath + 'img/tmp/' + pictureName);
+      var previousScreen = this.grunt.file.read(this.options.indexPath + 'img/screens/' + pictureName);
+      this.grunt.file.write(this.options.indexPath + 'img/screens/' + pictureName, latestScreen);
+      var latestScreen = fs.createReadStream(this.options.indexPath + 'img/tmp/' + pictureName);
+
     }, this);
   }
   // if screens have not been previously taken
   else {
-    this.screenNames.forEach(function(screenName) {
-      var latestScreen = this.grunt.file.read(this.options.indexPath + 'img/tmp/' + screenName);
-      this.grunt.file.write(this.options.indexPath + 'img/screens/' + screenName, latestScreen);
+    // create screens directory
+    fs.mkdirSync(this.options.indexPath + 'img/screens');
+
+    // copy immediately from tmp to screens directory as these are the first shots taken for otherst to be diffed against
+    this.pictures.forEach(function(picture) {
+      var pictureName = picture.name + '.png';
+      
+      //var latestScreen = this.grunt.file.read(this.options.indexPath + 'img/tmp/' + pictureName);
+      //this.grunt.file.write(this.options.indexPath + 'img/screens/' + pictureName, latestScreen);
+
+      fs.readFile(this.options.indexPath + 'img/tmp/' + pictureName, function(err, original_data){
+          //TODO: handle errors
+          var base64Image = original_data.toString('base64');
+          var decodedImage = new Buffer(base64Image, 'base64');
+          console.log(this.options.indexPath + 'img/screens/' + pictureName);
+          fs.writeFile(this.options.indexPath + 'img/screens/' + pictureName, decodedImage, function(err) {
+            console.log("write file", err);
+          });
+      }.bind(this));
+
     }, this);
   }
+
   // delete img directory if it already exists
   deleteFolderRecursive(this.options.indexPath + 'img/tmp');
-}
+};
 
 // expose the Screener object
 module.exports = Screener;

@@ -7,10 +7,8 @@ var split         = combinedUrl.split( '#' );
 var baseUrl       = split[ 0 ];
 var filePath      = split[ 1 ];
 var width         = +split[ 2 ];
-var indexPath     = system.args[ 2 ];
-// if ( filePath.match(/index\.html/) ) {
-//   filePath = filePath.replace(/index\.html/, '');
-// }
+var pictureName   = system.args[ 2 ];
+var indexPath     = system.args[ 3 ];
 var url = baseUrl + filePath;
 
 page.onError = function ( msg ) {
@@ -44,14 +42,11 @@ page.open( url, function( status ) {
     };
 
     // indexPath specified in Gruntfile or default options, path to where screenshots are stored
-    var imgPath = indexPath +
-                    'img/tmp/' +
-                    filePath.replace( /\//g, '-').replace(/\./g, '-') +
-                    '-' + width +
-                    '.png';
-    page.render( imgPath, {format: 'png', quality: '100'} );
+    var imgPath = indexPath + 'img/tmp/' + pictureName + '.png';
 
-    system.stdout.writeLine( 'Rendered: ' + filePath.replace( /\//g, '-').replace(/\./g, '-') );
+    page.render( imgPath );
+
+    system.stdout.writeLine( 'Rendered: ' + pictureName );
 
     phantom.exit();
   }, 1000 );
